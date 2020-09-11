@@ -88,13 +88,13 @@ export function diff(
 																				// 如果是 context.Provider组件，则tmp即为undefined
 																				// class组件中如果使用context，会有contextType值，tmp ==> context
 																				// 函数组件，其中如果使用context，即consumer，consumer默认有该属性值 
-			let provider = tmp && globalContext[tmp._id];   //初次渲染 undefined
+			let provider = tmp && globalContext[tmp._id];   //如果之前有provider, 通过id拿到的是provider对象
 			// 如果组件使用了context，componentContext为对应context的value，否则为参数globalContext的值，首次为空对象{}
 			let componentContext = tmp                      // 初次{}
 				? provider
 					? provider.props.value    //如果proverder 有value属性就消费value值
 					: tmp._defaultValue       // 只有匹配不到procider时才使用 _defaultValue
-				: globalContext;  
+				: globalContext;       //如果使用hooks中useContext, componentContext值为globalContext，则c.context 为globalContext
 
 			// Get component and set it to `c`
 			// 实例化组件
@@ -225,7 +225,7 @@ export function diff(
 			// 每次createContext都会有一个ctx变量 === {ctxId: createContext的结果},
 			// 所以出现provider组件就会有对应context存入ctx对象，即globalContext
 			if (c.getChildContext != null) {
-				//所以没出现一个provider就会将其对应的context添加到globalContext中
+				//所以每出现一个provider就会将其添加到globalContext中，{contextId, provider}
 				globalContext = assign(assign({}, globalContext), c.getChildContext());
 			}
 

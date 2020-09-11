@@ -20,7 +20,7 @@ let oldBeforeUnmount = options.unmount;
 const RAF_TIMEOUT = 100;
 let prevRaf;
 
-options._render = vnode => {    //diff中, 首次渲染,会调用该函数
+options._render = vnode => {    //diff中, 首次渲染,会调用该函数，在vnode对应的组件调用render函数之前执行该函数
 	if (oldBeforeRender) oldBeforeRender(vnode);
 
 	currentComponent = vnode._component;
@@ -34,8 +34,8 @@ options._render = vnode => {    //diff中, 首次渲染,会调用该函数
 	}
 };
 
-options.diffed = vnode => {       // 触发setHook时,会触发对应compont的setState({}),从而触发diff, 
-	                              // diff中会调用该该方法, 进而触发副作用effect
+options.diffed = vnode => {       // 触发setHook时,会触发对应compont的setState({}),从而触发diff, 289行
+	                              // diff快结束时会调用该该方法, 进而触发副作用effect
 	if (oldAfterDiff) oldAfterDiff(vnode);
 
 	const c = vnode._component;
@@ -44,7 +44,7 @@ options.diffed = vnode => {       // 触发setHook时,会触发对应compont的s
 	}
 };
 
-options._commit = (vnode, commitQueue) => {
+options._commit = (vnode, commitQueue) => {  //diff 303行，会调用该函数，useLayoutEffect的回调函数
 	commitQueue.some(component => {
 		try {
 			component._renderCallbacks.forEach(invokeCleanup);
@@ -111,7 +111,7 @@ function getHookState(index, type) {
  */
 export function useState(initialState) {
 	currentHook = 1;
-	return useReducer(invokeOrReturn, initialState);
+	return useReducer(invokeOrReturn, initialState);    //初始state还可以是函数
 }
 
 // function invokeOrReturn(arg, f) {
@@ -134,8 +134,8 @@ export function useReducer(reducer, initialState, init) {
 		hookState._value = [
 			!init ? invokeOrReturn(undefined, initialState) : init(initialState),
 
-			action => {
-				const nextValue = hookState._reducer(hookState._value[0], action);
+			action => {     
+				const nextValue = hookState._reducer(hookState._value[0], action);    //setState(action) action可以是一个函数，该函数参数为旧的state, 返回值为新的state
 				if (hookState._value[0] !== nextValue) {
 					hookState._value = [nextValue, hookState._value[1]];
 					hookState._component.setState({});
@@ -230,7 +230,7 @@ export function useCallback(callback, args) {
  * @param {import('./internal').PreactContext} context
  */
 export function useContext(context) {
-	const provider = currentComponent.context[context._id];
+	const provider = currentComponent.context[context._id];   //diff 97行，c.context 为globalContext，内容为所有的provider
 	// We could skip this call here, but than we'd not call
 	// `options._hook`. We need to do that in order to make
 	// the devtools aware of this hook.
