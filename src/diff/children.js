@@ -26,8 +26,8 @@ import { getDomSibling } from '../component';
  */
 export function diffChildren(
 	parentDom,          // '#root'
-	renderResult,       //[vnode]
-	newParentVNode,     // new Compont
+	renderResult,       //[App]
+	newParentVNode,     // <Fragment>
 	oldParentVNode,     // EMPTY_OBJ
 	globalContext,      // EMPTY_OBJ
 	isSvg,
@@ -71,11 +71,11 @@ export function diffChildren(
 		else if (typeof childVNode == 'string' || typeof childVNode == 'number') {
 			// 某个孩子是文本节点
 			childVNode = newParentVNode._children[i] = createVNode(
-				null,
-				childVNode,
-				null,
-				null,
-				childVNode
+				null,        // type
+				childVNode,  // props
+				null,        // key
+				null,        // ref
+				childVNode   // original
 			);
 		} else if (Array.isArray(childVNode)) {
 			// 某个孩子是数组 ????
@@ -86,7 +86,7 @@ export function diffChildren(
 				null,
 				null
 			);
-		} else if (childVNode._dom != null || childVNode._component != null) {
+		} else if (childVNode._dom != null || childVNode._component != null) {  //说明是更新时执行
 			childVNode = newParentVNode._children[i] = createVNode(
 				childVNode.type,
 				childVNode.props,
@@ -142,16 +142,16 @@ export function diffChildren(
 		oldVNode = oldVNode || EMPTY_OBJ;  //{}
 
 		// Morph the old element into the new one, but don't append it to the dom yet
-		newDom = diff(
+		newDom = diff(      //返回的是childVNode的dom  
 			                         // 首次
 			parentDom,               // "#root"
-			childVNode,              // vnode in  [vnode]  再次:   
+			childVNode,              // App in  [App]  再次:   
 			oldVNode,                // {}                 再次: oldparentVnode.children[i]
 			globalContext,           // {}
 			isSvg,                   // false
 			excessDomChildren,       // undefined
 			commitQueue,             // []
-			oldDom,                  // {}
+			oldDom,                  // null
 			isHydrating              // false
 		);
 
@@ -170,12 +170,12 @@ export function diffChildren(
 
 			oldDom = placeChild(
 				parentDom,
-				childVNode,
-				oldVNode,
-				oldChildren,
+				childVNode,    //App
+				oldVNode,      //{}
+				oldChildren,   // []
 				excessDomChildren,
-				newDom,
-				oldDom
+				newDom,       // App diff后的DOM
+				oldDom       // null
 			);
 
 			// Browsers will infer an option's `value` from `textContent` when

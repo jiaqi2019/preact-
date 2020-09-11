@@ -71,35 +71,39 @@ export function diff(
 
 	// When passing through createElement it assigns the object
 	// constructor as undefined. This to prevent JSON-injection.
-	if (newVNode.constructor !== undefined) return null;
+	if (newVNode.constructor !== undefined) return null;  //不是有效的element
 
 	if ((tmp = options._diff)) tmp(newVNode);
 
 	try {
-		// 如果新的Vnode.type 是函数,说明是组件,  首次diff, 是 Fragment 函数
+		// 如果新的Vnode.type 是函数,说明是组件（纯组件和class组件）,  首次diff, 是 Fragment 函数
 		outer: if (typeof newType == 'function') {
 			let c, isNew, oldProps, oldState, snapshot, clearProcessingException;
 			let newProps = newVNode.props;
 
 			// Necessary for createContext api. Setting this property will pass
 			// the context value as `this.context` just for this component.
+			/**Context处理部分 */
 			tmp = newType.contextType;       // 如果是 context.Consumer组件，则tmp即为context
-											// 如果是 context.Provider组件，则tmp即为undefined
-											// class组件中如果使用context，会有contextType值，tmp ==> context
-											// 函数组件，其中如果使用context，即consumer，consumer默认有该属性值 
+																				// 如果是 context.Provider组件，则tmp即为undefined
+																				// class组件中如果使用context，会有contextType值，tmp ==> context
+																				// 函数组件，其中如果使用context，即consumer，consumer默认有该属性值 
 			let provider = tmp && globalContext[tmp._id];   //初次渲染 undefined
+			// 如果组件使用了context，componentContext为对应context的value，否则为参数globalContext的值，首次为空对象{}
 			let componentContext = tmp                      // 初次{}
 				? provider
 					? provider.props.value    //如果proverder 有value属性就消费value值
 					: tmp._defaultValue       // 只有匹配不到procider时才使用 _defaultValue
-				: globalContext;
+				: globalContext;  
 
 			// Get component and set it to `c`
-			if (oldVNode._component) {
+			// 实例化组件
+			if (oldVNode._component) { //首次为undefined
 				c = newVNode._component = oldVNode._component;
 				clearProcessingException = c._processingException = c._pendingError;
 			} else {
 				// Instantiate the new component
+				// vnode没有组件实例，则实例化组件
 				// 函数组件的 prototype,是没有render属性的
 				// class组件,底层也是函数, 在jsx编译过程中 会对 该函数的prototype用difineproperty 
 				// 添加render属性,值即为 class中定义的render()函数
@@ -109,15 +113,15 @@ export function diff(
 				} else {
 					// 函数组件,或者字符串(html元素) 先用 Component 构造一个组件对象c
 					newVNode._component = c = new Component(newProps, componentContext);
-					c.constructor = newType;
-					c.render = doRender;
+					c.constructor = newType;   //将函数组件实例的constructor指向对应函数newType， 默认指向函数Component
+					c.render = doRender;     //给函数组件实例设置一个render函数
 				}
-				if (provider) provider.sub(c);
+				if (provider) provider.sub(c);  //如果组件实例使用了context，也有对应的provider组件，则provider的subs数组中添加该组件实例c
 
 				c.props = newProps;
 				if (!c.state) c.state = {};
 				c.context = componentContext;  //context值
-				c._globalContext = globalContext;   //ctx所有contenxt
+				c._globalContext = globalContext;   
 				isNew = c._dirty = true;
 				c._renderCallbacks = [];
 			}
@@ -126,6 +130,7 @@ export function diff(
 			if (c._nextState == null) {
 				c._nextState = c.state;
 			}
+			// getDerivedStateFromProps，在render方法之前，而且初次和后续更新都会调用
 			if (newType.getDerivedStateFromProps != null) {
 				if (c._nextState == c.state) {
 					c._nextState = assign({}, c._nextState);
@@ -141,7 +146,7 @@ export function diff(
 			oldState = c.state;
 
 			// Invoke pre-render lifecycle methods
-			if (isNew) {
+			if (isNew) {///首次渲染时执行
 				if (
 					newType.getDerivedStateFromProps == null &&
 					c.componentWillMount != null
@@ -152,7 +157,7 @@ export function diff(
 				if (c.componentDidMount != null) {
 					c._renderCallbacks.push(c.componentDidMount);
 				}
-			} else {
+			} else {// 更新时才会执行
 				if (
 					newType.getDerivedStateFromProps == null &&
 					newProps !== oldProps &&
@@ -170,7 +175,7 @@ export function diff(
 							componentContext
 						) === false) ||
 					newVNode._original === oldVNode._original
-				) {
+				) { //重新渲染时, 如果新旧vNode相同 或者 shouldComponentUpdate为fals时，跳过render调用，以及子节点的diff， 191行
 					c.props = newProps;
 					c.state = c._nextState;
 					// More info about this here: https://gist.github.com/JoviDeCroock/bec5f2ce93544d2e6070ef8e0036e4e8
@@ -208,15 +213,19 @@ export function diff(
 			c._parentDom = parentDom;
 			
 			
-			tmp = c.render(c.props, c.state, c.context);   //函数组件返回return中的jsx, 即React.createElement(jsx)====vnode
+			tmp = c.render(c.props, c.state, c.context);
+																//首次，为顶层fragment，返回props.children, 即为[App]   
+																//函数组件返回return中的jsx, 即React.createElement(jsx)====vnode
 														   //class组件,相当于调用render函数,结果为render函数的return值,即为jsx===vnode
 														   // context.summer和 provider 都会返回child
 			// Handle setState called in render, see #2553
 			c.state = c._nextState;
 
 			// context.provider组件,具有该属性，获取到ctx 对象
+			// 每次createContext都会有一个ctx变量 === {ctxId: createContext的结果},
 			// 所以出现provider组件就会有对应context存入ctx对象，即globalContext
 			if (c.getChildContext != null) {
+				//所以没出现一个provider就会将其对应的context添加到globalContext中
 				globalContext = assign(assign({}, globalContext), c.getChildContext());
 			}
 
@@ -226,7 +235,7 @@ export function diff(
 
 			let isTopLevelFragment =
 				tmp != null && tmp.type == Fragment && tmp.key == null;
-			let renderResult = isTopLevelFragment ? tmp.props.children : tmp;
+			let renderResult = isTopLevelFragment ? tmp.props.children : tmp;   //如果组件渲染结果最顶层为Fragment,则使用children作为render的结果
 
 			diffChildren(
 									// 首次
@@ -254,14 +263,17 @@ export function diff(
 
 			c._force = false;
 		}
-		// 如果新的Vnode.type 不是函数,
+		// 如果新的Vnode.type 不是函数, 即普通HtmlElement
 		else if (		
 			excessDomChildren == null &&
 			newVNode._original === oldVNode._original
 		) {
+			//_original代表自身 // 如果newVNode === oldVNode 将旧的_children 和 _dom 赋给新节点
 			newVNode._children = oldVNode._children;
 			newVNode._dom = oldVNode._dom;
 		} else {
+			// 如果newVNode !== oldVNode 
+			// newVNode._dom为diffElementNodes的结果
 			newVNode._dom = diffElementNodes(
 				oldVNode._dom,
 				newVNode,

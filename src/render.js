@@ -13,6 +13,7 @@ const IS_HYDRATE = EMPTY_OBJ;
  * @param {Element | Text} [replaceNode] Optional: Attempt to re-use an
  * existing DOM tree rooted at `replaceNode`
  */
+// 通过React.render(<App/>, document.getElementById('app')),开始执行
 export function render(vnode, parentDom, replaceNode) {
 	if (options._root) options._root(vnode, parentDom);
 
@@ -47,20 +48,21 @@ export function render(vnode, parentDom, replaceNode) {
 			return props.children;
 		}
 	*/
-	vnode = createElement(Fragment, null, [vnode]);
+	vnode = createElement(Fragment, null, [vnode]);	//首次渲染，通过一个片段（空标签，与dom中#app对等）作为App父标签,<App/>作为其children
 
 	// List of effects that need to be called after diffing.
 	let commitQueue = [];
 	/*diff(	parentDom, newVNode, oldVNode, globalContext,isSvg, excessDomChildren,commitQueue,oldDom,isHydrating)*/
 	//diff( #root,      vnode,   EMPTY_OBJ, EMPTY_OBJ,   false,  undefined,           [],         EMPTY_OBJ, false     )
 	// 					#root._children = vnode, 首次
+	// 首次render，会diff:两个虚拟节点 {}和 AppVnode 
 	diff(
 		parentDom, // 挂载的节点#root
 		// Determine the new vnode tree and store it on the DOM element on
 		// our custom `_children` property.
-		((isHydrating ? parentDom : replaceNode || parentDom)._children = vnode),
-		oldVNode || EMPTY_OBJ,
-		EMPTY_OBJ,
+		((isHydrating ? parentDom : replaceNode || parentDom)._children = vnode),  //该步之后parentDom._children为 vnode ===>顶级片段 <Fragment><App/><Fragment/>
+		oldVNode || EMPTY_OBJ,   //首次为{}，
+		EMPTY_OBJ,        //全局上下文 Context, 
 		parentDom.ownerSVGElement !== undefined,
 		replaceNode && !isHydrating
 			? [replaceNode]
@@ -69,7 +71,7 @@ export function render(vnode, parentDom, replaceNode) {
 			: parentDom.childNodes.length
 			? EMPTY_ARR.slice.call(parentDom.childNodes)
 			: null,
-		commitQueue,
+		commitQueue,   //diff之后需要执行的任务
 		replaceNode || EMPTY_OBJ,
 		isHydrating
 	);

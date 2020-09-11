@@ -15,6 +15,7 @@ export function createElement(type, props, children) {
 		if (i !== 'key' && i !== 'ref') normalizedProps[i] = props[i];
 	}
 
+	//使支持扩展children参数
 	if (arguments.length > 3) {
 		children = [children];
 		// https://github.com/preactjs/preact/issues/1916
@@ -28,6 +29,7 @@ export function createElement(type, props, children) {
 
 	// If a Component VNode, check for and apply defaultProps
 	// Note: type may be undefined in development, must never error here.
+	//如果是type是函数，应用默认属性defaultProps，该属性来自于属性验证中默认属性：componentA.defaultProps = {} （包括函数组件，class组件）
 	if (typeof type == 'function' && type.defaultProps != null) {
 		for (i in type.defaultProps) {
 			if (normalizedProps[i] === undefined) {
@@ -37,6 +39,7 @@ export function createElement(type, props, children) {
 	}
 
 	// createVNode(type, props, key, ref, original) 
+	// 此处从props中抽离出了key和ref， 所以组件对象中通过props是拿不到这两个属性的
 	return createVNode(
 		type,
 		normalizedProps,
@@ -77,7 +80,7 @@ export function createVNode(type, props, key, ref, original) {
 		_nextDom: undefined,
 		_component: null,
 		constructor: undefined,
-		_original: original
+		_original: original   //默认我们创建的组件都是43行创建Vnode，所以为null，所以86行_original是执行自身的Vnode的
 	};
 
 	if (original == null) vnode._original = vnode;
@@ -90,6 +93,8 @@ export function createRef() {
 	return { current: null };
 }
 
+// React中片段 <React.Fragment> 对应短语法：<>
+// 只能传入属性key
 export function Fragment(props) {
 	return props.children;
 }
@@ -99,5 +104,6 @@ export function Fragment(props) {
  * @param {*} vnode
  * @returns {vnode is import('./internal').VNode}
  */
+// 有效的Element即 vNode。constructor为undefined， 82行，默认创建时为undefined
 export const isValidElement = vnode =>
 	vnode != null && vnode.constructor === undefined;
